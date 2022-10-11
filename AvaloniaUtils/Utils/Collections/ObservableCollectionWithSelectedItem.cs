@@ -10,59 +10,75 @@ using DynamicData;
 
 namespace AvaloniaUtils.Utils.Collections
 {
-    public class ObservableCollectionWithSelectedItem<T> : ObservableCollection<T> where T : ISelected
+    public class ObservableCollectionWithSelectedItem<T> : ObservableCollection<T> where T : class, ISelected
     {
-        public delegate bool SelectedChangingHandler(object sender, T? currentValue, T? newValue);
+        private bool _multiSelect;
 
-        public event SelectedChangingHandler? SelectedChanging;
+        public delegate bool                   SelectionChangingHandler(object sender, IList<T>? addedItems, IList<T>? removedItems);
+        public event SelectionChangingHandler? SelectionChanging;
 
-        public delegate void SelectedChangedHandler(object sender, T? currentValue);
-
-        public event SelectedChangedHandler? SelectedChanged;
-        private T? _selectedItem;
-
+        public delegate void                 SelectedChangedHandler(object sender, IList<T>? addedItems, IList<T>? removedItems);
+        public event SelectedChangedHandler? SelectionChanged;
+        
         public T? SelectedItem
         {
-            get => _selectedItem;
+            get => _selectedItems.LastOrDefault();
             set
             {
-                var res = SelectedChanging?.Invoke(this, _selectedItem, value) ?? true;
+                var oldItems = _selectedItems.ToList();
+                var res      = SelectionChanging?.Invoke(this, value == null ? new List<T>() : new List<T>(){value}, oldItems) ?? true;
                 if (res)
                 {
-                    if (_selectedItem != null) _selectedItem.IsSelected = false;
-                    _selectedItem = value;
-                    if (_selectedItem != null) _selectedItem.IsSelected = true;
-                    SelectedChanged?.Invoke(this, _selectedItem);
-                }
+                    if (!_multiSelect)
+                        ClearSelection();
+                    if (value != null)
+                    {
+                        SelectedItems.Add(value);
+                        value.IsSelected = true;
+                    }
 
-                OnPropertyChanged("CurrentPosition");
+                    SelectionChanged?.Invoke(this, value == null ? new List<T>() : new List<T>() { value }, oldItems.ToList());
+                }
                 OnPropertyChanged();
             }
         }
 
-        public int CurrentPosition => SelectedItem != null ? IndexOf(SelectedItem) : -1;
+        private ObservableCollection<T> _selectedItems = new();
 
-        public ObservableCollectionWithSelectedItem() : base()
+        public ObservableCollection<T> SelectedItems
         {
-            MoveCurrentToFirst();
+            get => _selectedItems;
+            set
+            {
+                _selectedItems = value;
+                
+                OnPropertyChanged();
+            }
         }
 
-        public ObservableCollectionWithSelectedItem(IEnumerable<T> list) : base(list)
+        public ObservableCollectionWithSelectedItem(bool multiSelection = false) : base()
         {
-            MoveCurrentToFirst();
+            _multiSelect = multiSelection;
+            SetSelectedToFirst();
         }
 
-        public void MoveCurrentToFirst()
+        public ObservableCollectionWithSelectedItem(IEnumerable<T> list, bool multiSelection = false) : base(list)
+        {
+            _multiSelect = multiSelection;
+            SetSelectedToFirst();
+        }
+
+        public void SetSelectedToFirst()
         {
             SelectedItem = this.FirstOrDefault();
         }
 
-        public void MoveCurrentToLast()
+        public void SetSelectedToLast()
         {
             SelectedItem = this.LastOrDefault();
         }
 
-        public bool MoveCurrentTo(T item)
+        public bool SetSelectedTo(T item)
         {
             var obj = this.FirstOrDefault(x => x.Equals(item));
             if (obj == null) return false;
@@ -70,13 +86,14 @@ namespace AvaloniaUtils.Utils.Collections
             return true;
         }
 
-        public bool MoveCurrentToId(int id)
+        public bool SetSelectedToId(int id)
         {
             var prop = typeof(T).GetProperty("Id");
             if (prop == null) return false;
             foreach (var x in this)
             {
                 if (!int.TryParse(prop.GetValue(x)?.ToString(), out var res) || res != id) continue;
+
                 SelectedItem = x;
                 return true;
             }
@@ -84,9 +101,10 @@ namespace AvaloniaUtils.Utils.Collections
             return false;
         }
 
-        public bool MoveCurrentToPosition(int pos)
+        public bool SetSelectedToPosition(int pos)
         {
             if (pos < 0 || pos > Count - 1) return false;
+            
             SelectedItem = this[pos];
             return true;
         }
@@ -107,7 +125,7 @@ namespace AvaloniaUtils.Utils.Collections
 
         public new void Clear()
         {
-            SelectedItem = default;
+            ClearSelection();
             base.Clear();
         }
 
@@ -115,11 +133,77 @@ namespace AvaloniaUtils.Utils.Collections
         {
             Clear();
             this.AddRange(list);
-            MoveCurrentToFirst();
+            SetSelectedToFirst();
         }
 
-        public bool IsSelectedLast => Count > 0 && CurrentPosition == Count - 1;
-        public bool IsSelectedFirst => Count > 0 && CurrentPosition == 0;
+        public void AddSelected(T? item)
+        {
+            if (item != null)
+            {
+                var oldItems = _multiSelect ? new List<T>() : _selectedItems.ToList();
+                var res      = SelectionChanging?.Invoke(this, new List<T>() { item }, oldItems) ?? true;
+                if (res)
+                {
+                    if (!_multiSelect)
+                        ClearSelection();
+                    SelectedItems.Add(item);
+                    item.IsSelected = true;
+                    SelectionChanged?.Invoke(this, new List<T>() { item }, oldItems);
+                }
+            }
+            OnPropertyChanged("SelectedItem");
+        }
+
+        //public void AddSelected(IEnumerable<T?>? items)
+        //{
+        //    if (items == null) return;
+        //    foreach (var x in items)
+        //    {
+        //        if(x == null) continue;
+        //        SelectedItems.Add(x);
+        //        x.IsSelected = true;
+        //    }
+        //}
+
+        public void RemoveSelected(T? item)
+        {
+            if (item != null)
+            {
+                var res = SelectionChanging?.Invoke(this, new List<T>(), new List<T>() { item }) ?? true;
+                if (res)
+                {
+                    SelectedItems.Remove(item);
+                    item.IsSelected = false;
+                    SelectionChanged?.Invoke(this, new List<T>(), new List<T>() { item });
+                }
+            }
+            OnPropertyChanged("SelectedItem");
+        }
+
+        //public void RemoveSelected(IEnumerable<T?>? items)
+        //{
+        //    if (items == null) return;
+        //    foreach (var x in items)
+        //    {
+        //        if (x == null) continue;
+        //        SelectedItems.Remove(x);
+        //        x.IsSelected = false;
+        //    }
+        //}
+        
+        public void ClearSelection()
+        {
+            foreach (var x in SelectedItems.ToList())
+            {
+                x.IsSelected = false;
+                SelectedItems.Remove(x);
+            }
+            OnPropertyChanged("SelectedItem");
+        }
+
+
+        public bool                                           IsSelectedLast  => Count > 0 && SelectedItem != null && IndexOf(SelectedItem) == Count - 1;
+        public bool                                           IsSelectedFirst => Count > 0 && SelectedItem != null && IndexOf(SelectedItem) == 0;
         protected override event PropertyChangedEventHandler? PropertyChanged;
 
         public void OnPropertyChanged([CallerMemberName] string prop = "")
