@@ -14,10 +14,10 @@ namespace AvaloniaUtils.Utils.Collections
     {
         private bool _multiSelect;
 
-        public delegate bool                   SelectionChangingHandler(object sender, IList<T>? addedItems, IList<T>? removedItems);
+        public delegate bool                   SelectionChangingHandler(ObservableCollectionWithSelectedItem<T> sender, IList<T>? addedItems, IList<T>? removedItems);
         public event SelectionChangingHandler? SelectionChanging;
 
-        public delegate void                 SelectedChangedHandler(object sender, IList<T>? addedItems, IList<T>? removedItems);
+        public delegate void                 SelectedChangedHandler(ObservableCollectionWithSelectedItem<T> sender, IList<T>? addedItems, IList<T>? removedItems);
         public event SelectedChangedHandler? SelectionChanged;
         
         public T? SelectedItem
@@ -29,8 +29,7 @@ namespace AvaloniaUtils.Utils.Collections
                 var res      = SelectionChanging?.Invoke(this, value == null ? new List<T>() : new List<T>(){value}, oldItems) ?? true;
                 if (res)
                 {
-                    if (!_multiSelect)
-                        ClearSelection();
+                    ClearSelection();
                     if (value != null)
                     {
                         SelectedItems.Add(value);
@@ -199,6 +198,7 @@ namespace AvaloniaUtils.Utils.Collections
                 SelectedItems.Remove(x);
             }
             OnPropertyChanged("SelectedItem");
+            OnPropertyChanged("SelectedItems");
         }
 
 
