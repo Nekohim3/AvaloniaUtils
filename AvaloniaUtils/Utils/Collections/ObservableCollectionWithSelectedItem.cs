@@ -55,6 +55,9 @@ namespace AvaloniaUtils.Utils.Collections
             }
         }
 
+        public bool IsSelectedLast  => Count > 0 && SelectedItem != null && IndexOf(SelectedItem) == Count - 1;
+        public bool IsSelectedFirst => Count > 0 && SelectedItem != null && IndexOf(SelectedItem) == 0;
+
         public ObservableCollectionWithSelectedItem(bool multiSelection = false) : base()
         {
             _multiSelect = multiSelection;
@@ -202,8 +205,6 @@ namespace AvaloniaUtils.Utils.Collections
         }
 
 
-        public bool                                           IsSelectedLast  => Count > 0 && SelectedItem != null && IndexOf(SelectedItem) == Count - 1;
-        public bool                                           IsSelectedFirst => Count > 0 && SelectedItem != null && IndexOf(SelectedItem) == 0;
         protected override event PropertyChangedEventHandler? PropertyChanged;
 
         public void OnPropertyChanged([CallerMemberName] string prop = "")

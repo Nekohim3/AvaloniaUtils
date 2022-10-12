@@ -11,6 +11,7 @@ namespace AvaloniaUtils.Utils.Trees
     public interface ITreeNode<T> where T : class, ISelected
     {
         public bool                                    IsRoot { get; }
+        public int                                     Depth  { get; }
         public T?                                      Parent { get; set; }
         public ObservableCollectionWithSelectedItem<T> Childs { get; set; }
 
