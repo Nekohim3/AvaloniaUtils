@@ -17,5 +17,9 @@ namespace AvaloniaUtils.Utils.Trees
 
         public void AddChild(T    child);
         public void RemoveChild(T child);
+        public T    GetFirst(T    item);
+        public T    GetNext(T     item);
+        public T    GetPrev(T     item);
+        public T    GetLast(T     item);
     }
 }
